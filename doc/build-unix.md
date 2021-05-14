@@ -1,114 +1,150 @@
-Copyright (c) 2009-2013 Bitcoin Developers
-
-Distributed under the MIT/X11 software license, see the accompanying
-file COPYING or http://www.opensource.org/licenses/mit-license.php.
-This product includes software developed by the OpenSSL Project for use in the [OpenSSL Toolkit](http://www.openssl.org/). This product includes
-cryptographic software written by Eric Young ([eay@cryptsoft.com](mailto:eay@cryptsoft.com)), and UPnP software written by Thomas Bernard.
-
-UNIX BUILD NOTES FOR PEERCOIN
+UNIX BUILD NOTES
 ====================
+Some notes on how to build Peercoin in Unix.
 
-To build in Terminal on Debian based Linux
+(For BSD specific instructions, see `build-*bsd.md` in this directory.)
+
+Note
 ---------------------
+Always use absolute paths to configure and compile Peercoin and the dependencies,
+For example, when specifying the path of the dependency:
 
-	git clone https://github.com/peercoin/peercoin
-	cd peercoin
-	git checkout v0.6.2ppc
-	./contrib/vagrant/install.sh
+	../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
 
-
-UNIX BUILD NOTES FOR BITCOIN
-====================
+Here BDB_PREFIX must be an absolute path - it is defined using $(pwd) which ensures
+the usage of the absolute path.
 
 To Build
 ---------------------
 
-	./autogen.sh
-	./configure
-	make
+```bash
+./autogen.sh
+./configure
+make
+make install # optional
+```
 
-This will build Peercoin-Qt as well if the dependencies are met.
-See [readme-qt.md](readme-qt.md) for more information.
+This will build peercoin-qt as well, if the dependencies are met.
 
 Dependencies
 ---------------------
 
- Library     Purpose           Description
- -------     -------           -----------
- libssl      SSL Support       Secure communications
- libdb4.8    Berkeley DB       Blockchain & wallet storage
- libboost    Boost             C++ Library
- miniupnpc   UPnP Support      Optional firewall-jumping support
+These dependencies are required:
 
-[miniupnpc](http://miniupnp.free.fr/) may be used for UPnP port mapping.  It can be downloaded from [here](
-http://miniupnp.tuxfamily.org/files/).  UPnP support is compiled in and
-turned off by default.  See the configure options for upnp behavior desired:
+ Library     | Purpose          | Description
+ ------------|------------------|----------------------
+ libboost    | Utility          | Library for threading, data structures, etc
+ libevent    | Networking       | OS independent asynchronous networking
 
-	--with-miniupnpc         No UPnP support miniupnp not required
-	--disable-upnp-default   (the default) UPnP support turned off by default at runtime
-	--enable-upnp-default    UPnP support turned on by default at runtime
+Optional dependencies:
 
-IPv6 support may be disabled by setting:
+ Library     | Purpose          | Description
+ ------------|------------------|----------------------
+ miniupnpc   | UPnP Support     | Firewall-jumping support
+ libdb4.8    | Berkeley DB      | Wallet storage (only needed when wallet enabled)
+ qt          | GUI              | GUI toolkit (only needed when GUI enabled)
+ libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
+ univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
+ libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
 
-	--disable-ipv6           Disable IPv6 support
+For the versions used, see [dependencies.md](dependencies.md)
 
-Licenses of statically linked libraries:
- Berkeley DB   New BSD license with additional requirement that linked
-               software must be free open source
- Boost         MIT-like license
- miniupnpc     New (3-clause) BSD license
+Memory Requirements
+--------------------
 
-Versions used in this release:
- GCC           4.3.3
- OpenSSL       1.0.1g
- Berkeley DB   4.8.30.NC
- Boost         1.37
- miniupnpc     1.6
+C++ compilers are memory-hungry. It is recommended to have at least 1.5 GB of
+memory available when compiling Peercoin. On systems with less, gcc can be
+tuned to conserve memory with additional CXXFLAGS:
 
-Dependency Build Instructions: Ubuntu & Debian
-----------------------------------------------
+
+    ./configure CXXFLAGS="--param ggc-min-expand=1 --param ggc-min-heapsize=32768"
+
+Alternatively, or in addition, debugging information can be skipped for compilation. The default compile flags are
+`-g -O2`, and can be changed with:
+
+    ./configure CXXFLAGS="-O2"
+
+Finally, clang (often less resource hungry) can be used instead of gcc, which is used by default:
+
+    ./configure CXX=clang++ CC=clang
+
+## Linux Distribution Specific Instructions
+
+### Ubuntu & Debian
+
+#### Dependency Build Instructions
+
 Build requirements:
 
-	sudo apt-get install build-essential
-	sudo apt-get install libssl-dev
+    sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils python3
 
-for Ubuntu 12.04:
+Now, you can either build from self-compiled [depends](/depends/README.md) or install the required dependencies:
 
-	sudo apt-get install libboost-all-dev
+    sudo apt-get install libevent-dev libboost-system-dev libboost-filesystem-dev libboost-test-dev libboost-thread-dev
 
- db4.8 packages are available [here](https://launchpad.net/~bitcoin/+archive/bitcoin).
+BerkeleyDB is required for the wallet functionality.
+Historically Peercoin was first deployed with now deprecated BerkeleyDB-4.8, which has resulted in the need to upkeep the compatibility with those ancient deployments to this day. BerkeleyDB-4.8 is not compatible with more modern BerkeleyDB-5.1 and BerkeleyDB-5.3. Peercoin has inherited this in the first versions and this is why Peercoin is still officially shipped out with BerkeleyDB-4.8.
+However if you running a new wallet on a new installation there is absolutely no need to run old and deprecated BerkeleyDB-4.8. Just use the one avaliable in the repository of your distribution.
 
- Ubuntu precise has packages for libdb5.1-dev and libdb5.1++-dev,
- but using these will break binary wallet compatibility, and is not recommended.
+Ubuntu and Debian have their own `libdb-dev` and `libdb++-dev` packages, but these will install
+BerkeleyDB 5.1 or later. This will break binary wallet compatibility with the distributed executables, which
+are based on BerkeleyDB 4.8. If you do not care about wallet compatibility,
+pass `--with-incompatible-bdb` to configure.
 
-for other Ubuntu & Debian:
+Otherwise, you can build from self-compiled `depends` (see above).
 
-	sudo apt-get install libdb4.8-dev
-	sudo apt-get install libdb4.8++-dev
-	sudo apt-get install libboost1.37-dev
- (If using Boost 1.37, append -mt to the boost libraries in the makefile)
-
-Optional:
-
-	sudo apt-get install libminiupnpc-dev (see --with-miniupnpc and --enable-upnp-default)
+To build Peercoin without wallet, see [*Disable-wallet mode*](/doc/build-unix.md#disable-wallet-mode)
 
 
-Dependency Build Instructions: Gentoo
--------------------------------------
+Optional (see `--with-miniupnpc` and `--enable-upnp-default`):
 
-Note: Currently, there is no peercoin ebuild available in overlay 
+    sudo apt-get install libminiupnpc-dev
 
-	emerge -av1 --noreplace dev-libs/boost dev-libs/glib dev-libs/openssl sys-libs/db:4.8
+ZMQ dependencies (provides ZMQ API):
 
-Note: If you like to have UPnP support, you need to install net-libs/miniupnpc.
- 
-Take the following steps to build (no UPnP support):
+    sudo apt-get install libzmq3-dev
 
-	cd ${PEERCOIN_DIR}
-	./autogen.sh
-	./configure --without-miniupnpc CXXFLAGS="-i/usr/include/db4.8"
-	strip src/peercoind
+GUI dependencies:
 
+If you want to build Peercoin-Qt, make sure that the required packages for Qt development
+are installed. Qt 5 is necessary to build the GUI.
+To build without GUI pass `--without-gui`.
+
+To build with Qt 5 you need the following:
+
+    sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools
+
+libqrencode (optional) can be installed with:
+
+    sudo apt-get install libqrencode-dev
+
+Once these are installed, they will be found by configure and a peercoin-qt executable will be
+built by default.
+
+
+### Fedora
+
+#### Dependency Build Instructions
+
+Build requirements:
+
+    sudo dnf install gcc-c++ libtool make autoconf automake libevent-devel boost-devel libdb4-devel libdb4-cxx-devel python3
+
+Optional (see `--with-miniupnpc` and `--enable-upnp-default`):
+
+    sudo dnf install miniupnpc-devel
+
+ZMQ dependencies (provides ZMQ API):
+
+    sudo dnf install zeromq-devel
+
+To build with Qt 5 you need the following:
+
+    sudo dnf install qt5-qttools-devel qt5-qtbase-devel
+
+libqrencode (optional) can be installed with:
+
+    sudo dnf install qrencode-devel
 
 Notes
 -----
@@ -118,20 +154,29 @@ symbols, which reduces the executable size by about 90%.
 
 miniupnpc
 ---------
-	tar -xzvf miniupnpc-1.6.tar.gz
-	cd miniupnpc-1.6
-	make
-	sudo su
-	make install
+
+[miniupnpc](https://miniupnp.tuxfamily.org) may be used for UPnP port mapping.  It can be downloaded from [here](
+https://miniupnp.tuxfamily.org/files/).  UPnP support is compiled in and
+turned off by default.  See the configure options for upnp behavior desired:
+
+	--without-miniupnpc      No UPnP support miniupnp not required
+	--disable-upnp-default   (the default) UPnP support turned off by default at runtime
+	--enable-upnp-default    UPnP support turned on by default at runtime
 
 
 Berkeley DB
 -----------
-You need Berkeley DB 4.8.  If you have to build Berkeley DB yourself:
+It is recommended to use Berkeley DB 4.8. If you have to build it yourself,
+you can use [the installation script included in contrib/](/contrib/install_db4.sh)
+like so:
 
-	../dist/configure --enable-cxx
-	make
+```shell
+./contrib/install_db4.sh `pwd`
+```
 
+from the root of the repository.
+
+**Note**: You only need Berkeley DB if the wallet is enabled (see [*Disable-wallet mode*](/doc/build-unix.md#disable-wallet-mode)).
 
 Boost
 -----
@@ -144,45 +189,112 @@ If you need to build Boost yourself:
 
 Security
 --------
-To help make your bitcoin installation more secure by making certain attacks impossible to
+To help make your peercoin installation more secure by making certain attacks impossible to
 exploit even if a vulnerability is found, binaries are hardened by default.
 This can be disabled with:
 
-./configure --enable-hardening
+Hardening Flags:
+
+	./configure --enable-hardening
+	./configure --disable-hardening
 
 
 Hardening enables the following features:
-
-* Position Independent Executable
-    Build position independent code to take advantage of Address Space Layout Randomization
-    offered by some kernels. An attacker who is able to cause execution of code at an arbitrary
-    memory location is thwarted if he doesn't know where anything useful is located.
-    The stack and heap are randomly located by default but this allows the code section to be
+* _Position Independent Executable_: Build position independent code to take advantage of Address Space Layout Randomization
+    offered by some kernels. Attackers who can cause execution of code at an arbitrary memory
+    location are thwarted if they don't know where anything useful is located.
+    The stack and heap are randomly located by default, but this allows the code section to be
     randomly located as well.
 
-    On an Amd64 processor where a library was not compiled with -fPIC, this will cause an error
+    On an AMD64 processor where a library was not compiled with -fPIC, this will cause an error
     such as: "relocation R_X86_64_32 against `......' can not be used when making a shared object;"
 
     To test that you have built PIE executable, install scanelf, part of paxutils, and use:
 
-    	scanelf -e ./bitcoin
+    	scanelf -e ./peercoin
 
     The output should contain:
+
      TYPE
     ET_DYN
 
-* Non-executable Stack
-    If the stack is executable then trivial stack based buffer overflow exploits are possible if
-    vulnerable buffers are found. By default, bitcoin should be built with a non-executable stack
+* _Non-executable Stack_: If the stack is executable then trivial stack-based buffer overflow exploits are possible if
+    vulnerable buffers are found. By default, peercoin should be built with a non-executable stack
     but if one of the libraries it uses asks for an executable stack or someone makes a mistake
     and uses a compiler extension which requires an executable stack, it will silently build an
     executable without the non-executable stack protection.
 
     To verify that the stack is non-executable after compiling use:
-    `scanelf -e ./bitcoin`
+    `scanelf -e ./peercoin`
 
-    the output should contain:
+    The output should contain:
 	STK/REL/PTL
 	RW- R-- RW-
 
     The STK RW- means that the stack is readable and writeable but not executable.
+
+Disable-wallet mode
+--------------------
+When the intention is to run only a P2P node without a wallet, peercoin may be compiled in
+disable-wallet mode with:
+
+    ./configure --disable-wallet
+
+In this case there is no dependency on Berkeley DB.
+
+Mining is also possible in disable-wallet mode using the `getblocktemplate` RPC call.
+
+Disable checkpoints
+-------------------
+It is possible to compile the node without the support for centrally issued checkpoints:
+
+    ./configure --disable-checkpoints
+
+
+Additional Configure Flags
+--------------------------
+A list of additional configure flags can be displayed with:
+
+    ./configure --help
+
+
+Setup and Build Example: Arch Linux
+-----------------------------------
+This example lists the steps necessary to setup and build a command line only, non-wallet distribution of the latest changes on Arch Linux:
+
+    pacman -S git base-devel boost libevent python
+    git clone https://github.com/peercoin/peercoin.git
+    cd peercoin/
+    ./autogen.sh
+    ./configure --disable-wallet --without-gui --without-miniupnpc
+    make check
+
+Note:
+Enabling wallet support requires either compiling against a Berkeley DB newer than 4.8 (package `db`) using `--with-incompatible-bdb`,
+or building and depending on a local version of Berkeley DB 4.8.
+As mentioned above, when maintaining portability of the wallet between the standard Peercoin Core distributions and independently built
+node software is desired, Berkeley DB 4.8 must be used.
+
+
+ARM Cross-compilation
+-------------------
+These steps can be performed on, for example, an Ubuntu VM. The depends system
+will also work on other Linux distributions, however the commands for
+installing the toolchain will be different.
+
+Make sure you install the build requirements mentioned above.
+Then, install the toolchain and curl:
+
+    sudo apt-get install g++-arm-linux-gnueabihf curl
+
+To build executables for ARM:
+
+    cd depends
+    make HOST=arm-linux-gnueabihf NO_QT=1
+    cd ..
+    ./autogen.sh
+    ./configure --prefix=$PWD/depends/arm-linux-gnueabihf --enable-glibc-back-compat --enable-reduce-exports LDFLAGS=-static-libstdc++
+    make
+
+
+For further documentation on the depends system see [README.md](../depends/README.md) in the depends directory.

@@ -1,9 +1,12 @@
-#ifndef MINTINGTABLEMODEL_H
-#define MINTINGTABLEMODEL_H
-
+// Copyright (c) 2012-2021 The Peercoin developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+#ifndef PEERCOIN_QT_MINTINGTABLEMODEL_H
+#define PEERCOIN_QT_MINTINGTABLEMODEL_H
 
 #include <QAbstractTableModel>
 #include <QStringList>
+#include <interfaces/handler.h>
 
 class CWallet;
 class MintingTablePriv;
@@ -18,7 +21,7 @@ class MintingTableModel : public QAbstractTableModel
     Q_OBJECT
 
 public:
-    explicit MintingTableModel(CWallet* wallet, WalletModel *parent = 0);
+    explicit MintingTableModel(WalletModel *parent = 0);
     ~MintingTableModel();
 
     enum ColumnIndex {
@@ -41,8 +44,9 @@ public:
     void setMintingInterval(int interval);
 
 private:
-    CWallet* wallet;
     WalletModel *walletModel;
+    std::unique_ptr<interfaces::Handler> m_handler_transaction_changed;
+    std::unique_ptr<interfaces::Handler> m_handler_show_progress;
     QStringList columns;
     int mintingInterval;
     MintingTablePriv *priv;
@@ -59,7 +63,7 @@ private:
     QString formatTxBalance(const KernelRecord *wtx) const;
     QString formatTxCoinDay(const KernelRecord *wtx) const;
 
-public slots:
+public Q_SLOTS:
     void updateTransaction(const QString &hash, int status);
     void updateAge();
     void updateDisplayUnit();
@@ -67,4 +71,4 @@ public slots:
     friend class MintingTablePriv;
 };
 
-#endif // MINTINGTABLEMODEL_H
+#endif // PEERCOIN_QT_MINTINGTABLEMODEL_H
